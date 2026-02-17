@@ -3,54 +3,53 @@ const User = require('./models/User');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
-// Definimos los puestos exactos según tu requerimiento
 const puestosMañana =;
 const puestosTardeNoche =;
+const diasSemana =;
 
 const seedDB = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
-    // Limpiamos solo los guardias anteriores, no al administrador
-    await User.deleteMany({ role: 'usuario' }); 
+    await User.deleteMany({ role: 'usuario' });
 
     const passwordHashed = await bcrypt.hash('guardia123', 10);
-    let guardias =; // ✅ Inicializado correctamente
+    const guardias =;
+    const nombres =;
 
-    // Generamos los 21 guardias ficticios
-    for (let i = 1; i <= 21; i++) {
+    for (let i = 0; i < 21; i++) {
       let turno, puesto;
-      
-      if (i <= 7) { 
-        // Turno Mañana (7 guardias)
-        turno = '08-16'; 
-        puesto = puestosMañana[i-1];
-      } else if (i <= 14) { 
-        // Turno Tarde (7 guardias, rotando en 4 puestos)
-        turno = '16-24'; 
-        puesto = puestosTardeNoche[(i-8) % 4];
-      } else { 
-        // Turno Noche (7 guardias, rotando en 4 puestos)
-        turno = '00-08'; 
-        puesto = puestosTardeNoche[(i-15) % 4];
+      // Distribución: 11 en mañana (A), 5 en tarde (B), 5 en noche (C)
+      if (i < 11) {
+        turno = '08-16';
+        puesto = puestosMañana[i % puestosMañana.length];
+      } else if (i < 16) {
+        turno = '16-24';
+        puesto = puestosTardeNoche[(i - 11) % 4];
+      } else {
+        turno = '00-08';
+        puesto = puestosTardeNoche[(i - 16) % 4];
       }
 
+      // Lógica de 2 días libres aleatorios entre semana
+      const randomDays =.sort(() => 0.5 - Math.random()).slice(0, 2);
+
       guardias.push({
-        username: `guardia${i}`,
-        email: `guardia${i}@banco.com`,
+        username: `agente${i + 1}`,
+        email: `guardia${i + 1}@banco.com`,
         password: passwordHashed,
-        nombreCompleto: `Agente Ficticio ${i}`,
+        nombreCompleto: nombres[i],
         role: 'usuario',
         horario: turno,
         puesto: puesto,
-        diasLibres: // ✅ Valor inicial asignado
+        diasLibres: randomDays
       });
     }
 
     await User.insertMany(guardias);
-    console.log("✅ ¡21 Guardias inyectados con éxito en la base de datos!");
+    console.log("✅ 21 Guardias con horarios y días libres inyectados.");
     process.exit();
   } catch (error) {
-    console.error("❌ Error al sembrar datos:", error);
+    console.error("❌ Error:", error);
     process.exit(1);
   }
 };
