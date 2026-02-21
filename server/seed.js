@@ -1,57 +1,38 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs'); 
 const User = require('./models/User');
-const bcrypt = require('bcryptjs');
-require('dotenv').config();
 
-const puestosMañana =;
-const puestosTardeNoche =;
-const diasSemana =;
+// 1. CONEXIÓN (Sin esto, el código no sabe dónde guardar los datos)
+mongoose.connect('mongodb://127.0.0.1:27017/rosterDB')
+  .then(() => console.log("🌱 Conectado a MongoDB..."))
+  .catch(err => console.error("❌ Error de conexión:", err));
 
 const seedDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    await User.deleteMany({ role: 'usuario' });
+    await User.deleteMany({});
+    
+    const salt = await bcrypt.genSalt(10);
+    const hashedSnapshot = await bcrypt.hash('password123', salt);
 
-    const passwordHashed = await bcrypt.hash('guardia123', 10);
-    const guardias =;
-    const nombres =;
+    // 2. LA LISTA (Aquí es donde cerramos el "cable pelado")
+    const puestosMañana = ['Sótano', 'Caja', 'Pasillo', 'Reposición', 'Admin'];
+    
+    const usuarios = puestosMañana.map((puesto) => ({
+      username: `empleado_${puesto.toLowerCase()}`,
+      password: hashedSnapshot, 
+      role: puesto
+    }));
 
-    for (let i = 0; i < 21; i++) {
-      let turno, puesto;
-      // Distribución: 11 en mañana (A), 5 en tarde (B), 5 en noche (C)
-      if (i < 11) {
-        turno = '08-16';
-        puesto = puestosMañana[i % puestosMañana.length];
-      } else if (i < 16) {
-        turno = '16-24';
-        puesto = puestosTardeNoche[(i - 11) % 4];
-      } else {
-        turno = '00-08';
-        puesto = puestosTardeNoche[(i - 16) % 4];
-      }
-
-      // Lógica de 2 días libres aleatorios entre semana
-      const randomDays =.sort(() => 0.5 - Math.random()).slice(0, 2);
-
-      guardias.push({
-        username: `agente${i + 1}`,
-        email: `guardia${i + 1}@banco.com`,
-        password: passwordHashed,
-        nombreCompleto: nombres[i],
-        role: 'usuario',
-        horario: turno,
-        puesto: puesto,
-        diasLibres: randomDays
-      });
-    }
-
-    await User.insertMany(guardias);
-    console.log("✅ 21 Guardias con horarios y días libres inyectados.");
-    process.exit();
+    await User.insertMany(usuarios);
+    console.log("✅ Base de datos sembrada con contraseñas encriptadas");
+    
+    // Cerramos la conexión al terminar para que la terminal no se quede trabada
+    mongoose.connection.close();
   } catch (error) {
-    console.error("❌ Error:", error);
-    process.exit(1);
+    console.error("❌ Error al sembrar:", error);
+    mongoose.connection.close();
   }
 };
 
+// 3. ¡EL DISPARADOR! (Esta línea hace que todo lo de arriba se ejecute)
 seedDB();
